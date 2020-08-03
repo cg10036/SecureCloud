@@ -1,0 +1,148 @@
+<html>
+  <head> </head>
+  <script>
+    let filesystem = null;
+    window.requestFileSystem =
+      window.requestFileSystem || window.webkitRequestFileSystem;
+
+    initPerFileSystem = (size) => {
+      return new Promise((resolve, reject) => {
+        navigator.webkitPersistentStorage.requestQuota(
+          size,
+          (grantedSize) => {
+            window.requestFileSystem(
+              window.PERSISTENT,
+              grantedSize,
+              (fs) => {
+                filesystem = fs;
+                resolve();
+              },
+              reject
+            );
+          },
+          reject
+        );
+      });
+    };
+
+    createLocalFile = (name) => {
+      return new Promise((resolve, reject) => {
+        if (filesystem) {
+          filesystem.root.getFile(
+            name,
+            { create: true, exclusive: true },
+            resolve,
+            reject
+          );
+        } else reject();
+      });
+    };
+
+    writeLocalFile = (name, content) => {
+      return new Promise((resolve, reject) => {
+        filesystem.root.getFile(
+          name,
+          { create: true, exclusive: false },
+          (fileEntry) => {
+            fileEntry.createWriter((fileWriter) => {
+              fileWriter.onwriteend = resolve;
+              fileWriter.onerror = reject;
+              let blob = new Blob(content);
+              fileWriter.write(blob);
+            }, reject);
+          },
+          reject
+        );
+      });
+    };
+
+    appendLocalFile = (name, content) => {
+      return new Promise((resolve, reject) => {
+        filesystem.root.getFile(
+          name,
+          { create: true, exclusive: false },
+          (fileEntry) => {
+            fileEntry.createWriter((fileWriter) => {
+              fileWriter.onwriteend = resolve;
+              fileWriter.onerror = reject;
+              let blob = new Blob(content);
+              fileWriter.seek(fileWriter.length);
+              fileWriter.write(blob);
+            }, reject);
+          },
+          reject
+        );
+      });
+    };
+
+    readLocalFile = (name) => {
+      return new Promise((resolve, reject) => {
+        filesystem.root.getFile(
+          name,
+          {},
+          (fileEntry) => {
+            fileEntry.file((file) => {
+              let reader = new FileReader();
+              reader.onloadend = (progressEvent) => {
+                resolve(progressEvent.target.result);
+              };
+              reader.readAsArrayBuffer(file);
+            }, reject);
+          },
+          reject
+        );
+      });
+    };
+
+    downloadURL = (url, filename) => {
+      let a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.style = "display: none";
+      a.click();
+      a.remove();
+    };
+
+    downloadLocalFile = (name, filename) => {
+      return new Promise((resolve, reject) => {
+        filesystem.root.getFile(
+          name,
+          {},
+          (fileEntry) => {
+            fileEntry.file((file) => {
+              url = window.URL.createObjectURL(file);
+              downloadURL(url, filename);
+              setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+                resolve();
+              }, 5000);
+            }, reject);
+          },
+          reject
+        );
+      });
+    };
+
+    removeLocalFile = (name) => {
+      return new Promise((resolve, reject) => {
+        filesystem.root.getFile(
+          name,
+          { create: false, exclusive: false },
+          (fileEntry) => {
+            fileEntry.remove(resolve, reject);
+          },
+          reject
+        );
+      });
+    };
+
+    window.onload = async () => {
+      await initPerFileSystem(1024 * 1024 * 10);
+      await appendLocalFile("a.txt", [new Uint8Array([104, 105]).buffer]);
+      await appendLocalFile("a.txt", [new Uint8Array([104, 105, 0]).buffer]);
+      //await downloadLocalFile("a.txt", "fakename.txt");
+      await removeLocalFile("a.txt").catch(() => {});
+    };
+  </script>
+</html>
