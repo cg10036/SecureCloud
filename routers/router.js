@@ -7,10 +7,12 @@ const verifyUser = require("../auth/verify-user");
 
 const loginRouter = require("./login");
 const registerRouter = require("./register");
+const renewRouter = require("./renew");
 const uploadRouter = require("./upload");
 
 router.use("/login", loginRouter);
 router.use("/register", registerRouter);
+router.use("/renew", verifyUser.auth, renewRouter);
 router.use("/upload", verifyUser.auth, uploadRouter);
 
 router.use((req, res) => {
