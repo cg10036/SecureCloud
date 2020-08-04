@@ -19,6 +19,9 @@ router.post("/", (req, res) => {
     "../data/" + Buffer.from(req.id).toString("base64").replace("/", "_")
   );
   try {
+    if (!fs.existsSync(path.join(__dirname, "../data"))) {
+      fs.mkdirSync(path.join(__dirname, "../data"));
+    }
     if (!fs.existsSync(home)) {
       fs.mkdirSync(home);
     }
